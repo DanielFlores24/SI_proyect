@@ -33,7 +33,7 @@ CHAT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 def main() -> int:
     if not PROJECT:
-        print("Falta GOOGLE_CLOUD_PROJECT. Copia .env.example a .env y llénalo.")
+        print("Falta GOOGLE_CLOUD_PROJECT. Revisa tu .env con las variables del README.md.")
         return 1
 
     embed_client = genai.Client(vertexai=True, project=PROJECT, location=EMBED_LOCATION)

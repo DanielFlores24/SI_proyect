@@ -21,7 +21,7 @@ def escapar(valor: str) -> str:
 
 def main() -> None:
     if not ORIGEN.exists():
-        raise SystemExit("Falta .env. Copia .env.example a .env y llénalo.")
+        raise SystemExit("Falta .env. Crea el archivo con las variables documentadas en README.md.")
 
     lineas = ["# Generado por scripts/make_env_yaml.py. No editar a mano."]
     for linea in ORIGEN.read_text(encoding="utf-8").splitlines():

@@ -26,7 +26,7 @@ load_dotenv(ROOT / ".env")
 PASSWORD = os.environ.get("CHAT_PASSWORD", "")
 CLAVE = os.environ.get("CHAT_SECRET", "")
 HORAS = int(os.environ.get("SESSION_HOURS", "8"))
-LIMITE = int(os.environ.get("MAX_PREGUNTAS", "40"))
+LIMITE = int(os.environ.get("MAX_PREGUNTAS", "100"))
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "0") == "1"
 COOKIE_NOMBRE = "inro_sesion"
 

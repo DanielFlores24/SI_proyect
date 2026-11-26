@@ -46,10 +46,10 @@ En Cloud Run **no** se usa llave: se adjunta la cuenta de servicio al despliegue
 
 ### Acceso al chat y freno al gasto
 
-`/` y `/api/ask` están protegidos por una contraseña configurada en `CHAT_PASSWORD` (ver `.env.example`). Al entrar se guarda una cookie firmada con `CHAT_SECRET` que incluye cuántas preguntas se han usado: no hay sesión en servidor ni base de datos, así que funciona aunque Cloud Run cambie de instancia.
+`/` y `/api/ask` están protegidos por una contraseña configurada en `CHAT_PASSWORD` (en `.env` local y en Secret Manager en Cloud Run). Al entrar se guarda una cookie firmada con `CHAT_SECRET` que incluye cuántas preguntas se han usado: no hay sesión en servidor ni base de datos, así que funciona aunque Cloud Run cambie de instancia.
 
 - `SESSION_HOURS=8`: duración de la sesión.
-- `MAX_PREGUNTAS=40`: al llegar al límite, `/api/ask` responde `429` y pide volver a entrar.
+- `MAX_PREGUNTAS=100`: al llegar al límite, `/api/ask` responde `429` y pide volver a entrar.
 - `COOKIE_SECURE=0` en local; `1` en Cloud Run (HTTPS).
 - Si `CHAT_PASSWORD` o `CHAT_SECRET` están vacíos, el chat queda abierto solo para desarrollo. En Cloud Run **deben** estar definidos.
 
