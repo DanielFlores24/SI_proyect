@@ -117,33 +117,3 @@ gcloud run deploy chat-inro `
 `--allow-unauthenticated` es necesario para que se vea la página de login; el acceso al chat lo controla la contraseña de la app, no IAM de Cloud Run.
 
 Servicio desplegado: https://chat-inro-63003863631.us-central1.run.app
-
-Si un deploy falla con `ContainerImageImportFailed`, revisa los nombres de archivo dentro de la imagen: Cloud Run rechaza nombres con caracteres no UTF-8. Por eso el PDF de recomendaciones se llama ahora `INRO_Recomendaciones_de_maestros_U_2026A.pdf` (sin acentos raros ni espacios).
-
-### Aviso de presupuesto
-
-La API `billingbudgets.googleapis.com` ya está habilitada, pero la cuenta `danielfg240206@gmail.com` no tiene permisos sobre la cuenta de facturación `01AA65-D590A4-BA6ADA`, así que el presupuesto no pudo crearse desde `gcloud`. Para crearlo manualmente:
-
-1. Entra a https://console.cloud.google.com/billing/01AA65-D590A4-BA6ADA/budgets con una cuenta con rol **Billing Account Administrator** o **Billing Account User**.
-2. Crea un presupuesto mensual de **USD 5** filtrado por el proyecto `project-75994596-89bd-4024-a24`.
-3. Activa avisos por correo al **50 %, 90 %, 100 %** y al **90 % pronosticado**.
-
-O, si te dan el rol de facturación a tu cuenta, este comando lo crea:
-
-```powershell
-gcloud billing budgets create `
-  --billing-account=01AA65-D590A4-BA6ADA `
-  --display-name="Chat INRO - gasto mensual" `
-  --budget-amount=5USD `
-  --calendar-period=month `
-  --filter-projects=projects/project-75994596-89bd-4024-a24 `
-  --threshold-rule=percent=0.5 `
-  --threshold-rule=percent=0.9 `
-  --threshold-rule=percent=1.0 `
-  --threshold-rule="percent=0.9,basis=forecasted-spend"
-```
-
-## Pendiente
-
-- Rediseñar el front (skill `frontend-design`) si quieres una interfaz más trabajada.
-- Crear el aviso de presupuesto con una cuenta que tenga permisos de facturación.
