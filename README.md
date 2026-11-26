@@ -1,63 +1,147 @@
 # Chat de IA — Ingeniería en Robótica (CUCEI, UdeG)
 
-Proyecto escolar: un chat con IA que responde preguntas sobre la carrera, profesores, malla curricular y trámites, usando un corpus local con trazabilidad de fuentes.
+Chat con IA sobre la carrera, profesores, malla, trámites y bibliografía sugerida. Usa Gemini vía Vertex AI (GCP) y un índice semántico local con trazabilidad de fuentes.
 
 ## Estructura
 
 ```
-app/                    Aplicación (main.py, rag.py, templates, static)
+app/
+  main.py                 FastAPI: /health, /api/ask, /
+  rag.py                  recuperación semántica + prompt con citas
+  templates/index.html    interfaz de chat
+  static/                 CSS y JS del front
 data/
-  dataIA/
-    mallas.md                    Mallas 2018 y 2025 (resumen curricular)
-    profesores_inro.json         Profesores consolidados (SIIAU + PDF + MisProfes)
-    profesores_inro.md           Reporte legible de profesores
-    contexto_extra.json          Todas las fuentes adicionales consolidadas
-    fuentes/
-      INDICE.md                  Resumen de fuentes, fechas y cobertura
-      sitio_oficial/             ~46 páginas del sitio oficial de la carrera
-      catalogo_materias.md       Créditos, horas y prerrequisitos (SIIAU)
-      perfiles_academicos.md     Perfiles SNII/PRODEP del CUCEI
-      resenas_misprofes.md       Reseñas y etiquetas de estudiantes
-      bibliografia_sugerida.md   Libros por materia (NO oficial)
-  docs/                   PDFs fuente (mallas, recomendaciones de maestros)
+  dataIA/                 corpus crudo: mallas, profesores y 50 documentos de fuentes
+  index/                  chunks.json + embeddings.npy + meta.json
+  docs/                   PDFs fuente
 scripts/
-  scrape_profesores.py    Profesores: SIIAU público + PDF + MisProfesores
-  scrape_fuentes_extra.py Fuentes adicionales (5 fuentes)
+  scrape_profesores.py    SIIAU + PDF + MisProfesores
+  scrape_fuentes_extra.py sitio oficial, catálogo, académicos, reseñas, libros
+  build_index.py          convierte el corpus en el índice de búsqueda
+  check_gcp.py            comprueba credenciales y modelos de Vertex AI
 ```
 
-## Regenerar los datos
+## Puesta en marcha local
 
 ```powershell
 pip install -r requirements.txt
-python scripts/scrape_profesores.py
-python scripts/scrape_fuentes_extra.py
+python scripts/check_gcp.py
+python scripts/build_index.py --dry-run   # opcional: ver estadísticas
+python scripts/build_index.py             # regenera data/index/
+python scripts/test_rag.py                # 26 preguntas de prueba (usa la API)
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-`scrape_fuentes_extra.py` necesita que `profesores_inro.json` ya exista.
+Abre http://127.0.0.1:8000. El puerto 8080 suele estar bloqueado en Windows.
 
-## Convenciones de los documentos
+## Autenticación
 
-Todo archivo en `data/dataIA/fuentes/` lleva un encabezado YAML con:
+Local se usan credenciales ADC con impersonación de la cuenta de servicio (la organización prohíbe llaves JSON):
 
-- `titulo`, `fuente`, `url`
-- `fecha_captura`: fecha de obtención (para detectar información caducada)
-- `tipo`: `oficial` (UdeG/SIIAU) o `apoyo` (MisProfesores, Open Library)
+```powershell
+gcloud auth application-default login --impersonate-service-account=inro-chat-si@project-75994596-89bd-4024-a24.iam.gserviceaccount.com
+```
 
-Esto permite que el RAG priorice fuentes oficiales y advierta cuando una respuesta provenga de opiniones o sugerencias.
+En Cloud Run **no** se usa llave: se adjunta la cuenta de servicio al despliegue.
 
-## Fuentes y precauciones
+### Acceso al chat y freno al gasto
 
-| Fuente | Tipo | Uso |
-| --- | --- | --- |
-| Sitio oficial de la carrera y SIIAU | oficial | Mallas, créditos, prerrequisitos, trámites, laboratorios |
-| Académicos CUCEI (SNII/PRODEP) | oficial | Líneas de investigación y perfiles docentes |
-| PDF "Acción U 2026A: INRO" | apoyo | Reseñas de maestros por materia |
-| MisProfesores.com | apoyo | Calificaciones y comentarios de estudiantes |
-| Open Library | apoyo (NO oficial) | Bibliografía **sugerida**; no sustituye el programa de la asignatura |
+`/` y `/api/ask` están protegidos por una contraseña configurada en `CHAT_PASSWORD` (ver `.env.example`). Al entrar se guarda una cookie firmada con `CHAT_SECRET` que incluye cuántas preguntas se han usado: no hay sesión en servidor ni base de datos, así que funciona aunque Cloud Run cambie de instancia.
 
-Los datos de MisProfesores se emparejaron por nombre, por lo que pueden existir coincidencias erróneas; cada entrada incluye el URL original para verificarla.
+- `SESSION_HOURS=8`: duración de la sesión.
+- `MAX_PREGUNTAS=40`: al llegar al límite, `/api/ask` responde `429` y pide volver a entrar.
+- `COOKIE_SECURE=0` en local; `1` en Cloud Run (HTTPS).
+- Si `CHAT_PASSWORD` o `CHAT_SECRET` están vacíos, el chat queda abierto solo para desarrollo. En Cloud Run **deben** estar definidos.
+
+`/health` y `/static/*` siguen públicos; el primero solo reporta estado y si la protección está activa.
+
+El proyecto usa dos regiones porque los modelos no están en las mismas:
+
+- embeddings (`gemini-embedding-001`, 768 dims): `us-central1`
+- generación (`gemini-3.5-flash`): `global`
+
+## Regenerar el corpus
+
+```powershell
+python scripts/scrape_profesores.py
+python scripts/scrape_fuentes_extra.py
+python scripts/build_index.py
+```
+
+## Convenciones de datos
+
+Cada documento lleva `fuente`, `url`, `fecha_captura` y `tipo`:
+
+- `oficial`: UdeG / SIIAU / sitio de la carrera
+- `apoyo`: MisProfesores, Open Library (bibliografía **no oficial**)
+- `mixto`: SIIAU + opiniones de estudiantes
+
+Además, `build_index.py` crea **un fragmento limpio por materia** desde `profesores_inro.json`. Así, preguntas como "¿quién da Métodos Matemáticos III?" no dependen de una tabla gigante: `rag.py` detecta la clave (`I9885`) o el nombre con número romano/árabe y pone ese fragmento primero.
+
+El prompt ya **no pide citas en el texto**: las respuestas suenan como las diría un compañero y no muestran `[1]` ni `(1)`. La trazabilidad sigue en el campo `fuentes` de `/api/ask`. Si una respuesta depende de opiniones, lo dice de forma natural; si no hay info, sugiere preguntar a la coordinación.
+
+Cuando la pregunta es solo "¿quién da X?", `rag.py` responde directamente desde el bloque estructurado: **solo los nombres**, sin calificaciones ni materias extra. La interfaz no muestra las fuentes; el campo `fuentes` sigue disponible en la respuesta JSON de `/api/ask` para trazabilidad.
+
+### Contexto y recomendaciones
+
+El front envía hasta 16 mensajes (8 turnos) en `historial`. El backend los usa para entender respuestas cortas como "¿y quién la da?", heredar la materia aunque se haya dicho varias preguntas atrás y resolver "los dos" o "ellos" por el tema de la conversación. Es memoria de conversación enviada por el cliente, no sesión en el servidor, así que funciona igual en Cloud Run.
+
+Si piden una recomendación con un nombre que no existe literalmente (por ejemplo "precalculo"), se ofrecen los análogos reales del catálogo: Métodos Matemáticos I/II/III. Si no hay ninguna opinión de un profesor, se sugiere preguntar en CUCEI Social (Facebook). "Te recomiendo leer..." se trata como opinión del estudiante, no como pedido. Si dicen "robótica" a secas, se habla de la carrera completa (Control, Robótica Móvil, Sistemas Inteligentes, Embebidos, Visión Robótica), no solo de Robótica Móvil.
+
+El año de ingreso y el plan se guardan en el `historial`: decir "2025" o "ingresé en 2025" fija el Plan 2018 y no se vuelve a preguntar. Las referencias ("cada uno de ellos", "de los de control", "eso no es cierto") se resuelven con toda la conversación reciente y con el tema de la pregunta, no con una lista fija de cuatro profesores. Saludos, identidad del modelo, conceptos generales de control y operaciones simples se responden sin llamar al modelo.
+
+## Cloud Run
+
+Los valores no secretos salen de `.env`. Genera `.env.yaml` (ignorado por Git) con:
+
+```powershell
+python scripts/make_env_yaml.py
+gcloud services enable cloudbuild.googleapis.com secretmanager.googleapis.com
+printf "w9zX..." | gcloud secrets create inro-chat-password --data-file=-
+printf "..." | gcloud secrets create inro-chat-secret --data-file=-
+
+gcloud run deploy chat-inro `
+  --source . `
+  --region us-central1 `
+  --service-account inro-chat-si@project-75994596-89bd-4024-a24.iam.gserviceaccount.com `
+  --env-vars-file .env.yaml `
+  --set-secrets "CHAT_PASSWORD=inro-chat-password:latest,CHAT_SECRET=inro-chat-secret:latest" `
+  --allow-unauthenticated `
+  --port 8080 `
+  --memory 512Mi `
+  --timeout 60
+```
+
+`--allow-unauthenticated` es necesario para que se vea la página de login; el acceso al chat lo controla la contraseña de la app, no IAM de Cloud Run.
+
+Servicio desplegado: https://chat-inro-63003863631.us-central1.run.app
+
+Si un deploy falla con `ContainerImageImportFailed`, revisa los nombres de archivo dentro de la imagen: Cloud Run rechaza nombres con caracteres no UTF-8. Por eso el PDF de recomendaciones se llama ahora `INRO_Recomendaciones_de_maestros_U_2026A.pdf` (sin acentos raros ni espacios).
+
+### Aviso de presupuesto
+
+La API `billingbudgets.googleapis.com` ya está habilitada, pero la cuenta `danielfg240206@gmail.com` no tiene permisos sobre la cuenta de facturación `01AA65-D590A4-BA6ADA`, así que el presupuesto no pudo crearse desde `gcloud`. Para crearlo manualmente:
+
+1. Entra a https://console.cloud.google.com/billing/01AA65-D590A4-BA6ADA/budgets con una cuenta con rol **Billing Account Administrator** o **Billing Account User**.
+2. Crea un presupuesto mensual de **USD 5** filtrado por el proyecto `project-75994596-89bd-4024-a24`.
+3. Activa avisos por correo al **50 %, 90 %, 100 %** y al **90 % pronosticado**.
+
+O, si te dan el rol de facturación a tu cuenta, este comando lo crea:
+
+```powershell
+gcloud billing budgets create `
+  --billing-account=01AA65-D590A4-BA6ADA `
+  --display-name="Chat INRO - gasto mensual" `
+  --budget-amount=5USD `
+  --calendar-period=month `
+  --filter-projects=projects/project-75994596-89bd-4024-a24 `
+  --threshold-rule=percent=0.5 `
+  --threshold-rule=percent=0.9 `
+  --threshold-rule=percent=1.0 `
+  --threshold-rule="percent=0.9,basis=forecasted-spend"
+```
 
 ## Pendiente
 
-- Integrar `data/dataIA/` en `app/rag.py` para indexar los documentos con sus metadatos.
-- Definir comportamiento del chat ante preguntas sin fuente oficial (responder "no tengo información oficial" en lugar de inventar).
+- Rediseñar el front (skill `frontend-design`) si quieres una interfaz más trabajada.
+- Crear el aviso de presupuesto con una cuenta que tenga permisos de facturación.

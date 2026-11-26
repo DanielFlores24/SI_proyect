@@ -1,0 +1,9 @@
+{
+  "generado": "2026-11-25T18:47:33",
+  "modelo": "gemini-embedding-001",
+  "dimensiones": 768,
+  "fragmentos": 507,
+  "estructurados": 36,
+  "max_chars": 1200,
+  "overlap": 150
+}
