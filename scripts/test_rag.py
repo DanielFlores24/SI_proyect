@@ -337,7 +337,7 @@ def main() -> int:
             "recomendar entre profesores",
             "me pueds recomendar profesor para la materia de Sistemas inteligentes 1",
             lambda r: (
-                any(n in r["respuesta"] for n in ("Ríos", "RIOS"))
+                any(n in r["respuesta"] for n in ("Ríos", "RÍOS", "Rios", "RIOS"))
                 or _fallar("debió opinionar sobre Ríos"),
                 "Ruz" in r["respuesta"]
                 or _fallar("debió opinionar sobre Ruz"),
@@ -351,7 +351,7 @@ def main() -> int:
             lambda r: (
                 "¿Para qué materia?" not in r["respuesta"]
                 or _fallar("debió heredar Sistemas Inteligentes I del historial"),
-                any(n in r["respuesta"] for n in ("Ríos", "RIOS"))
+                any(n in r["respuesta"] for n in ("Ríos", "RÍOS", "Rios", "RIOS"))
                 or _fallar("debió comparar a los dos profesores"),
             ),
             HISTORIAL_SISTEMAS,
@@ -362,7 +362,7 @@ def main() -> int:
             lambda r: (
                 "¿Para qué materia?" not in r["respuesta"]
                 or _fallar("debió heredar la materia de varias preguntas atrás"),
-                any(n in r["respuesta"] for n in ("Ríos", "RIOS"))
+                any(n in r["respuesta"] for n in ("Ríos", "RÍOS", "Rios", "RIOS"))
                 or _fallar("debió comparar a los dos profesores"),
             ),
             HISTORIAL_SISTEMAS_LARGO,

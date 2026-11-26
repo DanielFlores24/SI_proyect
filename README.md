@@ -90,6 +90,8 @@ Si piden una recomendación con un nombre que no existe literalmente (por ejempl
 
 El año de ingreso y el plan se guardan en el `historial`: decir "2025" o "ingresé en 2025" fija el Plan 2018 y no se vuelve a preguntar. Las referencias ("cada uno de ellos", "de los de control", "eso no es cierto") se resuelven con toda la conversación reciente y con el tema de la pregunta, no con una lista fija de cuatro profesores. Saludos, identidad del modelo, conceptos generales de control y operaciones simples se responden sin llamar al modelo.
 
+Las respuestas van en texto plano: la interfaz no interpreta markdown, así que el prompt prohíbe negritas con `**` y títulos con `#`. Para enumerar, se usan guiones o números.
+
 ## Cloud Run
 
 Los valores no secretos salen de `.env`. Genera `.env.yaml` (ignorado por Git) con:
