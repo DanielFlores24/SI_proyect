@@ -421,6 +421,28 @@ def main() -> int:
                 },
             ],
         ),
+        (
+            "easter egg mejor prepa",
+            "¿cuál es la mejor prepa del mundo?",
+            lambda r: (
+                "CETI Colomos" in r["respuesta"]
+                or _fallar("debió decir CETI Colomos"),
+                "desarroll" in r["respuesta"].lower()
+                or _fallar("debió mencionar a los desarrolladores"),
+            ),
+        ),
+        (
+            "easter egg Ríos Arrañaga",
+            "¿qué sabes de Rios Arrañaga Jorge Daniel?",
+            lambda r: (
+                any(n in r["respuesta"] for n in ("Ríos", "Rios"))
+                or _fallar("debió hablar de Ríos Arrañaga"),
+                "su materia" in r["respuesta"]
+                or _fallar("debió decir que la app fue para su materia"),
+                "peque" in r["respuesta"]
+                or _fallar("debió decir que fue algo pequeño"),
+            ),
+        ),
     ]
 
     fallos = sum(not caso(*caso_item) for caso_item in casos)

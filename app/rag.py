@@ -819,9 +819,41 @@ def _respuesta_robotica_general() -> str:
     )
 
 
+def _es_mejor_prepa(pregunta: str) -> bool:
+    """Easter egg: cualquier 'mejor prepa' lleva a CETI Colomos."""
+    plano = normalizar(pregunta)
+    return bool(re.search(r"\bMEJOR(?:ES)?\b", plano)) and bool(
+        re.search(r"\b(PREPA|PREPARATORIA|BACHILLERATO)\b", plano)
+    )
+
+
+def _es_pregunta_rios(pregunta: str) -> bool:
+    """Easter egg: mención a Ríos Arrañaga, Jorge Daniel."""
+    palabras = normalizar(pregunta).split()
+    return "RIOS" in palabras and "ARRANAGA" in palabras
+
+
 def responder(pregunta: str, historial: list[dict] | None = None) -> dict:
     chunks, _ = cargar_indice()
     historial = _historial_reciente(historial)
+
+    if _es_mejor_prepa(pregunta):
+        return {
+            "respuesta": (
+                "CETI Colomos, sin dudarlo, aunque lo preguntes de cualquier lado. "
+                "Los que desarrollamos esta app somos de ahí."
+            ),
+            "fuentes": [],
+        }
+
+    if _es_pregunta_rios(pregunta):
+        return {
+            "respuesta": (
+                "Ah, Ríos Arrañaga, Jorge Daniel... este proyecto se hizo para su "
+                "materia, bien pequeñito nomás."
+            ),
+            "fuentes": [],
+        }
 
     respuesta = _respuesta_conversacional(pregunta)
     if respuesta:
