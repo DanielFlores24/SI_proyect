@@ -23,7 +23,7 @@ form.addEventListener('submit', async (e) => {
   mensaje(texto, 'usuario');
   input.value = '';
   boton.disabled = true;
-  const espera = mensaje('Pensando…', 'bot');
+  const espera = mensaje('…', 'bot');
 
   try {
     const r = await fetch('/api/ask', {
